@@ -96,7 +96,7 @@ function showDamage(side, text, cls = '') {
   if (side === 'enemy') { el.style.right = '80px'; el.style.top = '90px'; }
   else { el.style.left = '90px'; el.style.bottom = '120px'; }
   stage.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
+  setTimeout(() => el.remove(), 1700);
 }
 
 function showFx(emoji) {
@@ -194,7 +194,7 @@ async function useSkill(skillId) {
       if (elemMult < 1) msg += ' 效果不太好…';
       blog(msg);
       renderBattlers();
-      await wait(900);
+      await wait(1350); // 停留久一點，讓扣血動畫完整播放
 
       if (B.enemyHp <= 0) return battleVictory();
     } else if (sk.type === 'heal') {
@@ -231,7 +231,7 @@ async function useSkill(skillId) {
       showDamage('enemy', '-' + graze);
       blog(`${msp.name} 分心了，攻擊落空…只造成了擦傷。`);
       renderBattlers();
-      await wait(800);
+      await wait(1100);
       if (B.enemyHp <= 0) return battleVictory();
     } else {
       blog(`${msp.name} 分心了，${sk.name} 施放失敗…`);
@@ -292,7 +292,7 @@ async function enemyTurn() {
   showDamage('player', '-' + dmg);
   blog(`${esp.name} 使出 ${skName}！${blockMult < 1 ? '（已格擋減半）' : ''}`);
   renderBattlers();
-  await wait(900);
+  await wait(1350); // 停留久一點，讓扣血動畫完整播放
 }
 
 // QTE 完美格擋：閃現缺一個字母的簡單單字，限時內點選正確字母

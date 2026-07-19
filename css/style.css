@@ -140,7 +140,7 @@ body {
 }
 .b-name { font-weight: 800; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; }
 .hpbar { height: 12px; background: #ddd; border-radius: 6px; margin-top: 5px; overflow: hidden; }
-.hpfill { height: 100%; width: 100%; background: linear-gradient(#66bb6a, #43a047); border-radius: 6px; transition: width .4s; }
+.hpfill { height: 100%; width: 100%; background: linear-gradient(#66bb6a, #43a047); border-radius: 6px; transition: width 1.1s ease-out; }
 .hpfill.hp-mid { background: linear-gradient(#ffca28, #ffa000); }
 .hpfill.hp-low { background: linear-gradient(#ef5350, #d32f2f); }
 .hptext { font-size: 11px; color: #666; text-align: right; margin-top: 2px; }
@@ -164,7 +164,7 @@ body {
 .dmg-num {
   position: absolute; font-size: 30px; font-weight: 900; color: #fff;
   text-shadow: 0 2px 0 #c62828, 0 0 8px rgba(0,0,0,.4);
-  animation: dmg-float 1s ease forwards; pointer-events: none; z-index: 4;
+  animation: dmg-float 1.7s ease forwards; pointer-events: none; z-index: 4;
 }
 .dmg-num.crit { color: #ffee58; font-size: 40px; }
 .dmg-num.heal { text-shadow: 0 2px 0 #2e7d32, 0 0 8px rgba(0,0,0,.4); }

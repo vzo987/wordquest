@@ -129,6 +129,32 @@ function openTeam() {
     G.team.push(G.storage.splice(idx, 1)[0]);
     autoSave(); openTeam();
   });
+  // 放生（釋放倉庫空間，怪獸回贈金幣）
+  body.querySelectorAll('[data-release]').forEach(b => b.onclick = async () => {
+    const idx = Number(b.dataset.release);
+    const m = G.storage[idx];
+    if (!m) return;
+    const sp = SPECIES[m.sp];
+    const gift = m.lv * 15;
+    const sure = await showModal({
+      title: '要放生嗎？', emoji: sp.emoji,
+      body: `<b>${sp.name}</b>（Lv.${m.lv}）將回到大自然。<br>` +
+        `牠會留下 💰<b>${gift}</b> 金幣做為道別禮物。<br><small>放生後無法復原喔！</small>`,
+      buttons: [
+        { text: '💨 放生，一路順風！', value: true, cls: 'btn-close' },
+        { text: '再想想', value: false },
+      ],
+    });
+    if (!sure) return openTeam();
+    // 歸還身上的裝備
+    if (m.weapon) G.player.invWeapons[m.weapon] = (G.player.invWeapons[m.weapon] || 0) + 1;
+    if (m.armor) G.player.invArmors[m.armor] = (G.player.invArmors[m.armor] || 0) + 1;
+    G.storage.splice(idx, 1);
+    G.player.gold += gift;
+    Audio2.sfx.coin();
+    await showModal({ title: '再見了！', emoji: '👋', body: `${sp.name} 開心地回到大自然，留下了 💰${gift} 金幣。` });
+    autoSave(); openTeam();
+  });
 }
 
 function teamCardHtml(m, i, where) {
@@ -142,7 +168,8 @@ function teamCardHtml(m, i, where) {
        <button class="btn" data-skills="${m.uid}">✨ 技能</button>
        ${G.team.length > 1 ? `<button class="btn btn-close" data-tostorage="${i}">送回倉庫</button>` : ''}`
     : `<button class="btn ${G.team.length >= 3 ? '' : 'btn-gold'}" data-toteam="${i}" ${G.team.length >= 3 ? 'disabled' : ''}>加入隊伍</button>
-       <button class="btn" data-equip="${m.uid}">🗡️ 裝備</button>`;
+       <button class="btn" data-equip="${m.uid}">🗡️ 裝備</button>
+       <button class="btn btn-close" data-release="${i}">💨 放生</button>`;
   // 隊伍排序按鈕（第一隻先上場）
   const order = where === 'team' && G.team.length > 1
     ? `<div class="t-order">

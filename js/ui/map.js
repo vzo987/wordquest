@@ -4,7 +4,7 @@ const MapView = {
   grid: [],           // 二維字元陣列
   monsters: [],       // {idx, spId, lv, elite, x, y, homeX, homeY}
   bossPos: null,
-  chestPos: null,
+  chests: [],         // 未開啟的寶箱 [{x, y, key}]
   playerEmoji: '🧒',
   busy: false,        // 戰鬥/彈窗中停止操作
   lastMove: 0,
@@ -24,7 +24,7 @@ MapView.load = function (mapId, pos = null) {
 
   // 起點
   let startX = 1, startY = 1;
-  mv.bossPos = null; mv.chestPos = null;
+  mv.bossPos = null; mv.chests = [];
   const spawnTiles = [];
   for (let y = 0; y < mv.grid.length; y++) {
     for (let x = 0; x < mv.grid[y].length; x++) {
@@ -32,7 +32,11 @@ MapView.load = function (mapId, pos = null) {
       if (c === 'P') { startX = x; startY = y; mv.grid[y][x] = '.'; }
       else if (c === 'M') { spawnTiles.push({ x, y }); mv.grid[y][x] = '.'; }
       else if (c === 'B') { mv.bossPos = { x, y }; mv.grid[y][x] = '.'; }
-      else if (c === 'X') { mv.chestPos = { x, y }; mv.grid[y][x] = '.'; }
+      else if (c === 'X') {
+        const key = `${mapId}_${x}_${y}`;
+        if (!G.world.chests[key]) mv.chests.push({ x, y, key }); // 已開過的不再出現
+        mv.grid[y][x] = '.';
+      }
     }
   }
   if (pos) { G.world.x = pos.x; G.world.y = pos.y; }
@@ -149,7 +153,9 @@ MapView.move = function (dx, dy) {
   if (c === 'C') mv.onCampfire();
   else if (c === 'S') mv.onShop();
   else if (c === 'E') mv.onExit();
-  if (mv.chestPos && nx === mv.chestPos.x && ny === mv.chestPos.y) mv.onChest();
+  else if (c === 'R') mv.onReturn();
+  const chest = mv.chests.find(ch => ch.x === nx && ch.y === ny);
+  if (chest) mv.onChest(chest);
 };
 
 // ---------- 事件：營火（存檔點） ----------
@@ -171,11 +177,11 @@ MapView.onShop = function () {
 };
 
 // ---------- 事件：寶箱 ----------
-MapView.onChest = async function () {
+MapView.onChest = async function (chest) {
   const mv = MapView;
-  if (G.world.chests[mv.map.id]) return;
   mv.busy = true;
-  G.world.chests[mv.map.id] = true;
+  G.world.chests[chest.key] = true;
+  mv.chests = mv.chests.filter(ch => ch !== chest);
   const c = mv.map.chest;
   G.player.gold += c.gold;
   G.player.items[c.item] = (G.player.items[c.item] || 0) + 1;
@@ -185,6 +191,29 @@ MapView.onChest = async function () {
     title: '發現寶箱！', emoji: '📦',
     body: `獲得 💰${c.gold} 金幣與 ${it.emoji} ${it.name}！`,
   });
+  autoSave();
+  mv.refreshHud();
+  mv.busy = false;
+};
+
+// ---------- 事件：返回門（回上一關，地圖具連續性） ----------
+MapView.onReturn = async function () {
+  const mv = MapView;
+  const prevId = mv.map.prev;
+  if (!prevId) return;
+  mv.busy = true;
+  const prev = MAPS[prevId];
+  // 尋找上一關的出口 E，重生在它左側（形成雙向通道）
+  let ex = 1, ey = 1;
+  prev.grid.forEach((row, y) => {
+    const x = row.indexOf('E');
+    if (x >= 0) { ex = x; ey = y; }
+  });
+  await showModal({
+    title: '返回上一區', emoji: '🔙',
+    body: `回到 <b>${prev.name}</b>（Lv.${prev.lvRange[0]}~${prev.lvRange[1]}）`,
+  });
+  mv.load(prevId, { x: ex - 1, y: ey });
   autoSave();
   mv.refreshHud();
   mv.busy = false;
@@ -350,15 +379,22 @@ MapView.render = function () {
       } else if (c === 'E') {
         ctx.font = '26px serif';
         ctx.fillText(G.world.cleared[mv.map.id] ? '🚪' : '🔒', px + TILE / 2, py + TILE / 2 + 2);
+      } else if (c === 'R') {
+        ctx.font = '26px serif';
+        ctx.fillText('🔙', px + TILE / 2, py + TILE / 2 + 2);
+      } else if (th.deco && th.deco[c]) {
+        // 裝飾地物（可行走）
+        ctx.font = '18px serif';
+        ctx.fillText(th.deco[c], px + TILE / 2, py + TILE / 2 + 2);
       }
     }
   }
 
-  // 寶箱
-  if (mv.chestPos && !G.world.chests[mv.map.id]) {
-    ctx.font = '26px serif';
-    ctx.fillText('📦', mv.chestPos.x * TILE + TILE / 2, mv.chestPos.y * TILE + TILE / 2 + 2);
-  }
+  // 寶箱（每關可有多個）
+  ctx.font = '26px serif';
+  mv.chests.forEach(ch => {
+    ctx.fillText('📦', ch.x * TILE + TILE / 2, ch.y * TILE + TILE / 2 + 2);
+  });
 
   // Boss
   if (mv.bossPos && !G.world.cleared[mv.map.id]) {

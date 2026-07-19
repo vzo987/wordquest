@@ -5,7 +5,7 @@ const MapView = {
   grid: [],
   monsters: [],
   bossPos: null,
-  chestPos: null,
+  chests: [],           // 未開啟的寶箱 [{x, y, key}]
   busy: false,
   lastMove: 0,
   graceUntil: 0,
@@ -16,7 +16,7 @@ const MapView = {
   boardGroup: null,     // 地形
   playerGroup: null,
   monsterGroups: {},    // key → THREE.Group
-  bossGroup: null, chestGroup: null, exitSprite: null,
+  bossGroup: null, chestGroups: {}, exitSprite: null,
   waters: [], fireLight: null,
   // --- 第三人稱鏡頭（固定朝向，位置平滑跟隨 → 避免暈眩） ---
   camAngle: Math.PI, camAngleTarget: Math.PI, // 固定面向北方（與小地圖方位一致）
@@ -25,8 +25,8 @@ const MapView = {
 };
 
 // 鏡頭參數（身歷其境的第三人稱跟隨視角）
-const CAM_DIST = 3.8;    // 鏡頭在玩家身後的距離
-const CAM_HEIGHT = 2.7;  // 鏡頭高度
+const CAM_DIST = 4.5;    // 鏡頭在玩家身後的距離
+const CAM_HEIGHT = 3.2;  // 鏡頭高度
 const CAM_AHEAD = 2.2;   // 視線望向玩家前方幾格
 
 const RESPAWN_MS = 3 * 60 * 1000; // 3 分鐘計時重生
@@ -88,7 +88,7 @@ MapView.load = function (mapId, pos = null) {
   G.world.map = mapId;
 
   let startX = 1, startY = 1;
-  mv.bossPos = null; mv.chestPos = null;
+  mv.bossPos = null; mv.chests = [];
   const spawnTiles = [];
   for (let y = 0; y < mv.grid.length; y++) {
     for (let x = 0; x < mv.grid[y].length; x++) {
@@ -96,7 +96,11 @@ MapView.load = function (mapId, pos = null) {
       if (c === 'P') { startX = x; startY = y; mv.grid[y][x] = '.'; }
       else if (c === 'M') { spawnTiles.push({ x, y }); mv.grid[y][x] = '.'; }
       else if (c === 'B') { mv.bossPos = { x, y }; mv.grid[y][x] = '.'; }
-      else if (c === 'X') { mv.chestPos = { x, y }; mv.grid[y][x] = '.'; }
+      else if (c === 'X') {
+        const key = `${mapId}_${x}_${y}`;
+        if (!G.world.chests[key]) mv.chests.push({ x, y, key });
+        mv.grid[y][x] = '.';
+      }
     }
   }
   if (pos) { G.world.x = pos.x; G.world.y = pos.y; }
@@ -148,7 +152,8 @@ MapView.build3dBoard = function () {
   Object.values(mv.monsterGroups).forEach(g => mv.scene.remove(g));
   mv.monsterGroups = {};
   if (mv.bossGroup) { mv.scene.remove(mv.bossGroup); mv.bossGroup = null; }
-  if (mv.chestGroup) { mv.scene.remove(mv.chestGroup); mv.chestGroup = null; }
+  Object.values(mv.chestGroups).forEach(g => mv.scene.remove(g));
+  mv.chestGroups = {};
   mv.waters = [];
   mv.exitSprite = null;
 
@@ -207,19 +212,29 @@ MapView.build3dBoard = function () {
         s.position.set(wx, 0.55, wz);
         mv.boardGroup.add(s);
         mv.exitSprite = s;
+      } else if (c === 'R') {
+        const s = E3D.makeEmojiSprite('🔙', 0.85);
+        s.position.set(wx, 0.5, wz);
+        mv.boardGroup.add(s);
+      } else if (th.deco && th.deco[c]) {
+        // 裝飾地物（可行走的小物件）
+        const s = E3D.makeEmojiSprite(th.deco[c], 0.55);
+        s.position.set(wx, 0.28, wz);
+        mv.boardGroup.add(s);
       }
     }
   }
 
-  // 寶箱
-  if (mv.chestPos) {
-    mv.chestGroup = new THREE.Group();
+  // 寶箱（每關可有多個）
+  mv.chests.forEach(ch => {
+    const grp = new THREE.Group();
     const s = E3D.makeEmojiSprite('📦', 0.85);
     s.position.y = 0.45;
-    mv.chestGroup.add(s, E3D.makeShadow(0.7));
-    mv.chestGroup.position.set(gx(mv.chestPos.x), 0, gz(mv.chestPos.y));
-    mv.scene.add(mv.chestGroup);
-  }
+    grp.add(s, E3D.makeShadow(0.7));
+    grp.position.set(gx(ch.x), 0, gz(ch.y));
+    mv.chestGroups[ch.key] = grp;
+    mv.scene.add(grp);
+  });
 
   // BOSS
   if (mv.bossPos) {
@@ -294,7 +309,9 @@ MapView.tick3d = function (now) {
     mv.bossGroup.visible = !G.world.cleared[mv.map.id];
     mv.bossGroup.children[0].position.y = 0.8 + Math.sin(t * 2.2) * 0.08;
   }
-  if (mv.chestGroup) mv.chestGroup.visible = !G.world.chests[mv.map.id];
+  for (const [key, grp] of Object.entries(mv.chestGroups)) {
+    if (G.world.chests[key]) { mv.scene.remove(grp); delete mv.chestGroups[key]; }
+  }
   if (mv.exitSprite) E3D.setSpriteEmoji(mv.exitSprite, G.world.cleared[mv.map.id] ? '🚪' : '🔒');
 
   // 水波 / 營火光
@@ -332,16 +349,17 @@ MapView.drawMinimap = function (now) {
         c === '~' ? th.liquid :
         c === 'C' ? '#ff7043' :
         c === 'S' ? '#ab47bc' :
+        c === 'R' ? '#26c6da' :
         c === 'E' ? (G.world.cleared[mv.map.id] ? '#ffd54f' : '#78909c') :
         ((x + y) % 2 === 0 ? th.ground : th.ground2);
       ctx.fillRect(x * S, y * S, S, S);
     }
   }
   // 寶箱 / BOSS / 怪獸 / 玩家
-  if (mv.chestPos && !G.world.chests[mv.map.id]) {
-    ctx.fillStyle = '#ffb300';
-    ctx.fillRect(mv.chestPos.x * S + 2, mv.chestPos.y * S + 2, S - 4, S - 4);
-  }
+  ctx.fillStyle = '#ffb300';
+  mv.chests.forEach(ch => {
+    ctx.fillRect(ch.x * S + 2, ch.y * S + 2, S - 4, S - 4);
+  });
   if (mv.bossPos && !G.world.cleared[mv.map.id]) {
     ctx.fillStyle = '#d500f9';
     ctx.beginPath();
@@ -449,7 +467,9 @@ MapView.move = function (sdx, sdy) {
   if (c === 'C') mv.onCampfire();
   else if (c === 'S') mv.onShop();
   else if (c === 'E') mv.onExit();
-  if (mv.chestPos && nx === mv.chestPos.x && ny === mv.chestPos.y) mv.onChest();
+  else if (c === 'R') mv.onReturn();
+  const chest = mv.chests.find(ch => ch.x === nx && ch.y === ny);
+  if (chest) mv.onChest(chest);
 };
 
 // ---------- 地圖事件（與 2D 版相同） ----------
@@ -467,11 +487,11 @@ MapView.onCampfire = async function () {
 
 MapView.onShop = function () { openShop(); };
 
-MapView.onChest = async function () {
+MapView.onChest = async function (chest) {
   const mv = MapView;
-  if (G.world.chests[mv.map.id]) return;
   mv.busy = true;
-  G.world.chests[mv.map.id] = true;
+  G.world.chests[chest.key] = true;
+  mv.chests = mv.chests.filter(ch => ch !== chest);
   const c = mv.map.chest;
   G.player.gold += c.gold;
   G.player.items[c.item] = (G.player.items[c.item] || 0) + 1;
@@ -481,6 +501,28 @@ MapView.onChest = async function () {
     title: '發現寶箱！', emoji: '📦',
     body: `獲得 💰${c.gold} 金幣與 ${it.emoji} ${it.name}！`,
   });
+  autoSave();
+  mv.refreshHud();
+  mv.busy = false;
+};
+
+// ---------- 事件：返回門（回上一關，地圖具連續性） ----------
+MapView.onReturn = async function () {
+  const mv = MapView;
+  const prevId = mv.map.prev;
+  if (!prevId) return;
+  mv.busy = true;
+  const prev = MAPS[prevId];
+  let ex = 1, ey = 1;
+  prev.grid.forEach((row, y) => {
+    const x = row.indexOf('E');
+    if (x >= 0) { ex = x; ey = y; }
+  });
+  await showModal({
+    title: '返回上一區', emoji: '🔙',
+    body: `回到 <b>${prev.name}</b>（Lv.${prev.lvRange[0]}~${prev.lvRange[1]}）`,
+  });
+  mv.load(prevId, { x: ex - 1, y: ey });
   autoSave();
   mv.refreshHud();
   mv.busy = false;
