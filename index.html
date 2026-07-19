@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>單字冒險 RPG — Word Quest</title>
+<meta name="theme-color" content="#2b3a7a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="單字冒險">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game">
+
+  <!-- ===== 標題畫面 ===== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg"></div>
+    <div class="title-inner">
+      <div class="title-logo">⚔️ 單字冒險 <span>Word Quest</span></div>
+      <div class="title-sub">答對單字 · 擊敗怪獸 · 收服夥伴！</div>
+      <div class="title-monsters">🐞 🌱 💧 🔥 🪨</div>
+      <div class="title-buttons">
+        <button id="btn-continue" class="btn btn-big btn-gold hidden">📖 繼續冒險</button>
+        <button id="btn-newgame" class="btn btn-big">✨ 新的冒險</button>
+      </div>
+      <div class="title-hint">建議使用電腦鍵盤或觸控操作</div>
+    </div>
+  </div>
+
+  <!-- ===== 初始夥伴選擇 ===== -->
+  <div id="screen-starter" class="screen">
+    <h2 class="screen-title">選擇你的初始夥伴！</h2>
+    <p class="starter-hint">五行屬性：金剋木 · 木剋土 · 土剋水 · 水剋火 · 火剋金</p>
+    <div id="starter-list" class="starter-list"></div>
+    <div id="starter-detail" class="starter-detail hidden"></div>
+  </div>
+
+  <!-- ===== 地圖探索 ===== -->
+  <div id="screen-map" class="screen">
+    <div id="map-hud">
+      <div id="hud-mapname"></div>
+      <div id="hud-gold">💰 0</div>
+      <div id="hud-team-mini"></div>
+      <div class="hud-btns">
+        <button class="btn btn-hud" id="btn-team">👥 隊伍</button>
+        <button class="btn btn-hud" id="btn-bag">🎒 背包</button>
+        <button class="btn btn-hud" id="btn-dex">📕 圖鑑</button>
+        <button class="btn btn-hud" id="btn-wordbook">📘 單字書</button>
+      </div>
+    </div>
+    <div id="map-wrap">
+      <canvas id="map-canvas" width="660" height="440"></canvas>
+      <div id="map-msg" class="hidden"></div>
+    </div>
+    <div id="dpad">
+      <button class="dpad-btn" data-dir="up">▲</button>
+      <div class="dpad-mid">
+        <button class="dpad-btn" data-dir="left">◀</button>
+        <button class="dpad-btn" data-dir="down">▼</button>
+        <button class="dpad-btn" data-dir="right">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 戰鬥畫面 ===== -->
+  <div id="screen-battle" class="screen">
+    <div id="battle-stage">
+      <div id="enemy-side" class="battler-side">
+        <div id="enemy-info" class="battler-info">
+          <div class="b-name"><span id="enemy-name"></span> <span id="enemy-lv"></span></div>
+          <div class="hpbar"><div id="enemy-hp" class="hpfill"></div></div>
+          <div id="enemy-hptext" class="hptext"></div>
+        </div>
+        <div id="enemy-sprite" class="sprite"></div>
+      </div>
+      <div id="player-side" class="battler-side">
+        <div id="player-sprite" class="sprite"></div>
+        <div id="player-info" class="battler-info">
+          <div class="b-name"><span id="player-name"></span> <span id="player-lv"></span></div>
+          <div class="hpbar"><div id="player-hp" class="hpfill"></div></div>
+          <div id="player-hptext" class="hptext"></div>
+          <div id="player-sp" class="sp-pips"></div>
+        </div>
+      </div>
+      <div id="battle-fx"></div>
+    </div>
+    <div id="battle-log"></div>
+    <div id="battle-panel">
+      <!-- 行動選單 -->
+      <div id="action-menu" class="hidden">
+        <div id="skill-buttons"></div>
+        <div class="action-row">
+          <button class="btn btn-act" id="btn-b-item">🧪 道具</button>
+          <button class="btn btn-act" id="btn-b-switch">🔄 換人</button>
+          <button class="btn btn-act" id="btn-b-run">🏃 逃跑</button>
+        </div>
+      </div>
+      <!-- 答題面板 -->
+      <div id="question-panel" class="hidden">
+        <div id="q-timerbar-wrap" class="hidden"><div id="q-timerbar"></div></div>
+        <div id="q-prompt"></div>
+        <div id="q-body"></div>
+      </div>
+      <!-- 子選單（道具/換人） -->
+      <div id="battle-submenu" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- ===== 通用彈窗 ===== -->
+  <div id="modal-mask" class="hidden">
+    <div id="modal-box"></div>
+  </div>
+
+  <!-- ===== 覆蓋層：商店 / 隊伍 / 背包 / 圖鑑 / 單字書 ===== -->
+  <div id="overlay" class="hidden">
+    <div id="overlay-box">
+      <div id="overlay-head">
+        <span id="overlay-title"></span>
+        <button class="btn btn-close" id="btn-overlay-close">✖</button>
+      </div>
+      <div id="overlay-body"></div>
+    </div>
+  </div>
+
+  <!-- 自動存檔提示 -->
+  <div id="save-toast" class="hidden">🪶 已自動存檔</div>
+</div>
+
+<script src="js/core/utils.js"></script>
+<script src="js/core/audio.js"></script>
+<script src="js/core/avatar.js"></script>
+<script src="js/data/words.js"></script>
+<script src="js/data/skills.js"></script>
+<script src="js/data/monsters.js"></script>
+<script src="js/data/items.js"></script>
+<script src="js/data/maps.js"></script>
+<script src="js/core/state.js"></script>
+<script src="js/core/learning.js"></script>
+<script src="js/systems/monster.js"></script>
+<script src="js/systems/battle.js"></script>
+<script src="js/ui/screens.js"></script>
+<script src="js/ui/map.js"></script>
+<script src="js/main.js"></script>
+<script>
+// PWA：註冊 Service Worker（離線遊玩；需 https 或 localhost）
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

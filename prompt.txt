@@ -1,0 +1,3 @@
+這是我的工作目錄 D:\work\Claude\project\07_RPG_word\work
+我要做一個RPG 遊戲，結合學習單字。
+請根據這份規劃來製作 D:\work\Claude\project\07_RPG_word\work\English_Learning_RPG_GDD.md
