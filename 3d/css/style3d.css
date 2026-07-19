@@ -1,0 +1,42 @@
+/* ============ 3D 版追加樣式 ============ */
+
+/* 標題 3D 徽章 */
+.badge-3d {
+  display: inline-block; background: linear-gradient(#ff8a65, #f4511e); color: #fff;
+  border-radius: 8px; padding: 0 8px; font-size: 20px; transform: rotate(-6deg);
+  box-shadow: 0 3px 0 rgba(0,0,0,.3);
+}
+
+/* 地圖：WebGL 畫布以絕對定位撐滿容器（容器 #map-wrap 已是 position:relative） */
+#map-canvas {
+  position: absolute; inset: 8px;
+  width: calc(100% - 16px); height: calc(100% - 16px);
+  border-radius: 12px;
+  image-rendering: auto;
+  max-width: none; max-height: none;
+}
+
+/* 小地圖（第三人稱視角的導航輔助） */
+#minimap {
+  position: absolute; top: 14px; left: 14px; z-index: 5;
+  width: 132px; height: auto;
+  border-radius: 8px; opacity: .92;
+  box-shadow: 0 3px 12px rgba(0,0,0,.45);
+  border: 2px solid rgba(255,255,255,.5);
+  pointer-events: none;
+}
+
+/* 戰鬥：3D 舞台畫布鋪滿背景，資訊卡浮在上層 */
+#battle-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: block;
+}
+#battle-stage .battler-side { z-index: 2; }
+#battle-fx { z-index: 3; }
+
+/* 隱藏 DOM emoji 精靈（邏輯仍使用這些元素觸發動畫，由 3D 層鏡像呈現） */
+#battle-stage .sprite {
+  opacity: 0 !important;
+  pointer-events: none;
+  width: 1px; height: 1px; overflow: hidden;
+}
