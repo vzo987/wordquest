@@ -123,6 +123,51 @@ function newGameInSlot(i) {
 
 function deleteSlot(i) { localStorage.removeItem(SLOT_KEYS[i]); }
 
+// ---- 存檔碼：跨裝置搬移存檔 ----
+// 格式：WQZ:<gzip+base64>（支援壓縮的瀏覽器）或 WQ1:<base64>（後備）
+function _bytesToB64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  }
+  return btoa(bin);
+}
+
+async function encodeSave(slotIndex) {
+  const raw = localStorage.getItem(SLOT_KEYS[slotIndex]);
+  if (!raw) return null;
+  try {
+    if (window.CompressionStream) {
+      const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
+      const buf = await new Response(stream).arrayBuffer();
+      return 'WQZ:' + _bytesToB64(new Uint8Array(buf));
+    }
+  } catch (e) { /* 改用未壓縮格式 */ }
+  return 'WQ1:' + btoa(unescape(encodeURIComponent(raw)));
+}
+
+// 解碼存檔碼 → 合法回傳 JSON 字串，否則回傳 null
+async function decodeSave(code) {
+  code = (code || '').trim().replace(/\s+/g, '');
+  try {
+    let raw = null;
+    if (code.startsWith('WQZ:')) {
+      const bin = atob(code.slice(4));
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      raw = await new Response(stream).text();
+    } else if (code.startsWith('WQ1:')) {
+      raw = decodeURIComponent(escape(atob(code.slice(4))));
+    }
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d.version || !d.team) return null;
+    return raw;
+  } catch (e) { return null; }
+}
+
+function importSaveToSlot(i, raw) { localStorage.setItem(SLOT_KEYS[i], raw); }
+
 // 自動存檔（依 GDD：戰鬥結算後、購買裝備後、升級進化時、切換地圖時）
 function autoSave() { if (G) saveGame(false); }
 
