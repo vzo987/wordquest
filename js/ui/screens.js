@@ -90,7 +90,7 @@ function openShop() {
 
 // ---------- 隊伍管理 ----------
 function openTeam() {
-  let html = '<div class="wb-summary">出戰隊伍最多 3 隻。點「裝備」幫夥伴穿裝備、點「技能」調整招式。</div>';
+  let html = '<div class="wb-summary">出戰隊伍最多 3 隻，<b>排最前面的會先上場</b>！用 ⬆⬇ 調整順序。</div>';
   html += '<h4 style="margin:6px 4px">⚔️ 出戰隊伍</h4>';
   G.team.forEach((m, i) => { html += teamCardHtml(m, i, 'team'); });
   if (G.storage.length) {
@@ -102,6 +102,21 @@ function openTeam() {
   const body = $('#overlay-body');
   body.querySelectorAll('[data-equip]').forEach(b => b.onclick = () => openEquip(b.dataset.equip));
   body.querySelectorAll('[data-skills]').forEach(b => b.onclick = () => openSkills(b.dataset.skills));
+  // 隊伍排序（與上/下一位交換）
+  body.querySelectorAll('[data-moveup]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.moveup);
+    if (i <= 0) return;
+    [G.team[i - 1], G.team[i]] = [G.team[i], G.team[i - 1]];
+    Audio2.sfx.select();
+    autoSave(); openTeam();
+  });
+  body.querySelectorAll('[data-movedown]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.movedown);
+    if (i >= G.team.length - 1) return;
+    [G.team[i], G.team[i + 1]] = [G.team[i + 1], G.team[i]];
+    Audio2.sfx.select();
+    autoSave(); openTeam();
+  });
   body.querySelectorAll('[data-tostorage]').forEach(b => b.onclick = () => {
     if (G.team.length <= 1) return;
     const idx = Number(b.dataset.tostorage);
@@ -128,7 +143,14 @@ function teamCardHtml(m, i, where) {
        ${G.team.length > 1 ? `<button class="btn btn-close" data-tostorage="${i}">送回倉庫</button>` : ''}`
     : `<button class="btn ${G.team.length >= 3 ? '' : 'btn-gold'}" data-toteam="${i}" ${G.team.length >= 3 ? 'disabled' : ''}>加入隊伍</button>
        <button class="btn" data-equip="${m.uid}">🗡️ 裝備</button>`;
-  return `<div class="team-card"><div class="t-emoji">${sp.emoji}</div>
+  // 隊伍排序按鈕（第一隻先上場）
+  const order = where === 'team' && G.team.length > 1
+    ? `<div class="t-order">
+         <button class="btn t-ord-btn" data-moveup="${i}" ${i === 0 ? 'disabled' : ''}>⬆</button>
+         <button class="btn t-ord-btn" data-movedown="${i}" ${i === G.team.length - 1 ? 'disabled' : ''}>⬇</button>
+       </div>`
+    : '';
+  return `<div class="team-card">${order}<div class="t-emoji">${sp.emoji}</div>
     <div class="t-info">
       <div class="t-name">${sp.name} <span class="badge badge-${sp.elem}">${sp.elem}</span> Lv.${m.lv}</div>
       <div class="t-stats">❤️${Math.round(m.hp)}/${s.hpMax}　⚔️${s.totalAtk}　🛡️${s.totalDef}　武器:${wName}　防具:${aName}</div>

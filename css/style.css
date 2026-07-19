@@ -276,6 +276,8 @@ body {
 .team-card .t-hpbar { height: 8px; background: #eee; border-radius: 4px; margin-top: 4px; overflow: hidden; }
 .team-card .t-btns { display: flex; flex-direction: column; gap: 4px; }
 .team-card .t-btns .btn { font-size: 12px; padding: 4px 10px; }
+.t-order { display: flex; flex-direction: column; gap: 6px; }
+.t-ord-btn { font-size: 13px; padding: 4px 9px; background: #78909c; border-radius: 9px; }
 .exp-bar { height: 5px; background: #e0e0e0; border-radius: 3px; margin-top: 3px; overflow: hidden; }
 .exp-fill { height: 100%; background: #ab47bc; }
 
