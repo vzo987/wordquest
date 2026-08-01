@@ -304,13 +304,29 @@ function openBag() {
   openOverlay('🎒 背包', html);
 }
 
+// 圖鑑排序：同一條進化線接續排列（線頭 → 二階 → 三階）
+function dexOrderedIds() {
+  const targets = new Set(Object.values(SPECIES).map(s => s.evolveTo).filter(Boolean));
+  const order = [];
+  for (const id of Object.keys(SPECIES)) {
+    if (targets.has(id)) continue; // 只從線頭開始
+    let cur = id;
+    while (cur && SPECIES[cur]) {
+      order.push(cur);
+      cur = SPECIES[cur].evolveTo;
+    }
+  }
+  return order;
+}
+
 // ---------- 怪獸圖鑑 ----------
 function openDex() {
   const total = Object.keys(SPECIES).length;
   const caught = Object.values(G.dex).filter(v => v === 'caught').length;
   const seen = Object.keys(G.dex).length;
   let html = `<div class="wb-summary">已發現 ${seen} / ${total}　已擁有 ${caught}</div><div class="dex-grid">`;
-  for (const [id, sp] of Object.entries(SPECIES)) {
+  for (const id of dexOrderedIds()) {
+    const sp = SPECIES[id];
     const st = G.dex[id];
     if (!st) {
       html += `<div class="dex-cell unseen"><div class="d-emoji">❓</div><div class="d-name">???</div></div>`;

@@ -576,13 +576,14 @@ MapView.onExit = async function () {
   }
   mv.busy = true;
   if (mv.map.next) {
-    const next = MAPS[mv.map.next];
+    const nextId = mv.map.next; // 先記下目標（load 之後 mv.map 會變成新地圖）
+    const next = MAPS[nextId];
     await showModal({
       title: '前往新地區！', emoji: '🗺️',
       body: `<b>${next.name}</b>（Lv.${next.lvRange[0]}~${next.lvRange[1]}）<br>${next.theme.name2}<br><small>單字難度提升，加油！</small>`,
     });
-    mv.load(mv.map.next);
-    G.world.checkpoint = { map: mv.map.next, x: G.world.x, y: G.world.y };
+    mv.load(nextId);
+    G.world.checkpoint = { map: nextId, x: G.world.x, y: G.world.y };
     autoSave();
   } else {
     G.world.ending = true;

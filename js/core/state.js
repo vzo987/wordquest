@@ -92,6 +92,22 @@ function normalizeSave(d) {
     if (!m.skills || !m.skills.length) m.skills = m.learned.slice(0, 4);
     if (m.exp === undefined) m.exp = 0;
   });
+
+  // 進度矯正：若因歷史 bug 把所在地圖/重生點設到「尚未解鎖」的地圖，往回退到合法進度
+  const backToUnlocked = (mapId) => {
+    let mid = MAPS[mapId] ? mapId : 'map1';
+    while (MAPS[mid] && MAPS[mid].prev && !d.world.cleared[MAPS[mid].prev]) mid = MAPS[mid].prev;
+    return mid;
+  };
+  const fixedMap = backToUnlocked(d.world.map);
+  if (fixedMap !== d.world.map) {
+    d.world.map = fixedMap;
+    d.world.x = 1; d.world.y = 1;
+  }
+  const fixedCp = backToUnlocked(d.world.checkpoint.map);
+  if (fixedCp !== d.world.checkpoint.map) {
+    d.world.checkpoint = { map: fixedCp, x: 1, y: 1 };
+  }
   return d;
 }
 

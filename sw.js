@@ -1,7 +1,7 @@
 ﻿// ============ Service Worker：離線遊玩支援 ============
 // 策略：安裝時預先快取全部資源；執行時「網路優先、離線用快取」
 // （有網路時永遠拿最新版，斷網時用上次快取的版本繼續玩）
-const VERSION = 'wordquest-v18';
+const VERSION = 'wordquest-v19';
 
 const PRECACHE = [
   './',
