@@ -1,4 +1,4 @@
-﻿// ============ 怪獸圖鑑資料 ============
+// ============ 怪獸圖鑑資料 ============
 // base: Lv1 基礎值；grow: 每升 1 級成長；evolveLv/evolveTo: 進化
 // learnset: {等級: [技能id]}；catchRate: 基礎收服率（0 = 不可收服）
 const SPECIES = {
@@ -8,45 +8,45 @@ const SPECIES = {
     evolveLv: 10, evolveTo: 'iron2', learnset: { 1: ['tackle', 'metal_claw'], 3: ['iron_wall'], 8: ['steel_storm'] },
     catchRate: 0.15, expYield: 22, desc: '堅硬外殼的小蟲，防禦力一流，慢慢磨也能贏！' },
   iron2: { name: '鋼殼獸', elem: '金', emoji: '🪲', base: { hp: 62, atk: 15, def: 22 }, grow: { hp: 8, atk: 2.8, def: 3.6 },
-    evolveLv: 25, evolveTo: 'iron3', learnset: { 15: ['titan_smash'] }, catchRate: 0, expYield: 40, desc: '進化後外殼閃耀金屬光澤，銅牆鐵壁。' },
+    evolveLv: 25, evolveTo: 'iron3', learnset: { 1: ['tackle', 'metal_claw', 'iron_wall'], 8: ['steel_storm'], 15: ['titan_smash'] }, catchRate: 0, expYield: 40, desc: '進化後外殼閃耀金屬光澤，銅牆鐵壁。' },
   iron3: { name: '鎧甲泰坦', elem: '金', emoji: '🪲', base: { hp: 95, atk: 24, def: 34 }, grow: { hp: 10, atk: 3.5, def: 4.2 },
-    learnset: {}, catchRate: 0, expYield: 70, desc: '最終進化！鋼殼鍍上黃金的泰坦甲蟲。' },
+    learnset: { 1: ['tackle', 'metal_claw', 'iron_wall', 'steel_storm'], 15: ['titan_smash'] }, catchRate: 0, expYield: 70, desc: '最終進化！鋼殼鍍上黃金的泰坦甲蟲。' },
 
   // --- 木：高回復 ---
   wood1: { name: '芽芽獸', elem: '木', emoji: '🌱', base: { hp: 45, atk: 9, def: 9 }, grow: { hp: 7, atk: 2.2, def: 2.2 },
     evolveLv: 10, evolveTo: 'wood2', learnset: { 1: ['tackle', 'vine_whip'], 3: ['heal_light'], 8: ['forest_bless'] },
     catchRate: 0.15, expYield: 22, desc: '頭上長著嫩芽的小傢伙，擅長治癒自己。' },
   wood2: { name: '花藤獸', elem: '木', emoji: '🌷', base: { hp: 70, atk: 15, def: 15 }, grow: { hp: 9, atk: 2.8, def: 2.8 },
-    evolveLv: 25, evolveTo: 'wood3', learnset: { 15: ['wood_burst'] }, catchRate: 0, expYield: 40, desc: '藤蔓與花朵纏繞全身，生命力旺盛。' },
+    evolveLv: 25, evolveTo: 'wood3', learnset: { 1: ['tackle', 'vine_whip', 'heal_light'], 8: ['forest_bless'], 15: ['wood_burst'] }, catchRate: 0, expYield: 40, desc: '藤蔓與花朵纏繞全身，生命力旺盛。' },
   wood3: { name: '森林巨靈', elem: '木', emoji: '🌲', base: { hp: 105, atk: 24, def: 24 }, grow: { hp: 12, atk: 3.5, def: 3.5 },
-    learnset: {}, catchRate: 0, expYield: 70, desc: '最終進化！參天針葉巨木化身的森林巨靈。' },
+    learnset: { 1: ['tackle', 'vine_whip', 'heal_light', 'forest_bless'], 15: ['wood_burst'] }, catchRate: 0, expYield: 70, desc: '最終進化！參天針葉巨木化身的森林巨靈。' },
 
   // --- 水：均衡 ---
   water1: { name: '小水滴', elem: '水', emoji: '💧', base: { hp: 42, atk: 10, def: 10 }, grow: { hp: 6.5, atk: 2.5, def: 2.5 },
     evolveLv: 10, evolveTo: 'water2', learnset: { 1: ['tackle', 'water_gun'], 3: ['aqua_veil'], 8: ['ice_beam'] },
     catchRate: 0.15, expYield: 22, desc: '圓滾滾的水滴精靈，攻守均衡的萬能型。' },
   water2: { name: '波浪精', elem: '水', emoji: '🐬', base: { hp: 65, atk: 17, def: 16 }, grow: { hp: 8.5, atk: 3.0, def: 3.0 },
-    evolveLv: 25, evolveTo: 'water3', learnset: { 15: ['tsunami'] }, catchRate: 0, expYield: 40, desc: '乘著波浪的水之精靈，靈活自如。' },
+    evolveLv: 25, evolveTo: 'water3', learnset: { 1: ['tackle', 'water_gun', 'aqua_veil'], 8: ['ice_beam'], 15: ['tsunami'] }, catchRate: 0, expYield: 40, desc: '乘著波浪的水之精靈，靈活自如。' },
   water3: { name: '深海蛟龍', elem: '水', emoji: '🐉', base: { hp: 98, atk: 27, def: 26 }, grow: { hp: 11, atk: 3.8, def: 3.8 },
-    learnset: {}, catchRate: 0, expYield: 70, desc: '最終進化！翻江倒海的深海蛟龍。' },
+    learnset: { 1: ['tackle', 'water_gun', 'aqua_veil', 'ice_beam'], 15: ['tsunami'] }, catchRate: 0, expYield: 70, desc: '最終進化！翻江倒海的深海蛟龍。' },
 
   // --- 火：高爆發 ---
   fire1: { name: '小火苗', elem: '火', emoji: '🔥', base: { hp: 38, atk: 13, def: 8 }, grow: { hp: 6, atk: 3.0, def: 2.0 },
     evolveLv: 10, evolveTo: 'fire2', learnset: { 1: ['tackle', 'ember'], 3: ['blaze_up'], 8: ['flame_burst'] },
     catchRate: 0.15, expYield: 22, desc: '活潑的小火苗，攻擊力超群，速戰速決！' },
   fire2: { name: '烈焰狐', elem: '火', emoji: '🦊', base: { hp: 58, atk: 21, def: 13 }, grow: { hp: 8, atk: 3.6, def: 2.5 },
-    evolveLv: 25, evolveTo: 'fire3', learnset: { 15: ['inferno'] }, catchRate: 0, expYield: 40, desc: '尾巴燃燒烈焰的神秘狐狸。' },
+    evolveLv: 25, evolveTo: 'fire3', learnset: { 1: ['tackle', 'ember', 'blaze_up'], 8: ['flame_burst'], 15: ['inferno'] }, catchRate: 0, expYield: 40, desc: '尾巴燃燒烈焰的神秘狐狸。' },
   fire3: { name: '炎獄天虎', elem: '火', emoji: '🐯', base: { hp: 88, atk: 32, def: 20 }, grow: { hp: 10, atk: 4.5, def: 3.0 },
-    learnset: {}, catchRate: 0, expYield: 70, desc: '最終進化！烈焰纏身的百獸之王。' },
+    learnset: { 1: ['tackle', 'ember', 'blaze_up', 'flame_burst'], 15: ['inferno'] }, catchRate: 0, expYield: 70, desc: '最終進化！烈焰纏身的百獸之王。' },
 
   // --- 土：高生命 ---
   earth1: { name: '小岩怪', elem: '土', emoji: '🪨', base: { hp: 50, atk: 10, def: 11 }, grow: { hp: 8, atk: 2.3, def: 2.6 },
     evolveLv: 10, evolveTo: 'earth2', learnset: { 1: ['tackle', 'rock_throw'], 3: ['earth_shield'], 8: ['sand_heal'] },
     catchRate: 0.15, expYield: 22, desc: '圓圓的小石頭精靈，生命力超強。' },
   earth2: { name: '石靈守衛', elem: '土', emoji: '🗿', base: { hp: 78, atk: 16, def: 18 }, grow: { hp: 10, atk: 2.9, def: 3.2 },
-    evolveLv: 25, evolveTo: 'earth3', learnset: { 15: ['quake'] }, catchRate: 0, expYield: 40, desc: '古老石像甦醒而成的守護者。' },
+    evolveLv: 25, evolveTo: 'earth3', learnset: { 1: ['tackle', 'rock_throw', 'earth_shield'], 8: ['sand_heal'], 15: ['quake'] }, catchRate: 0, expYield: 40, desc: '古老石像甦醒而成的守護者。' },
   earth3: { name: '大地泰坦', elem: '土', emoji: '⛰️', base: { hp: 115, atk: 25, def: 27 }, grow: { hp: 13, atk: 3.6, def: 3.8 },
-    learnset: {}, catchRate: 0, expYield: 70, desc: '最終進化！山岳化身的大地泰坦。' },
+    learnset: { 1: ['tackle', 'rock_throw', 'earth_shield', 'sand_heal'], 15: ['quake'] }, catchRate: 0, expYield: 70, desc: '最終進化！山岳化身的大地泰坦。' },
 
   // ================= 野生怪獸（可收服） =================
   // --- 木系 ---

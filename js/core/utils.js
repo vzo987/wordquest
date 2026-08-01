@@ -1,4 +1,4 @@
-// ============ 共用工具 ============
+﻿// ============ 共用工具 ============
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
@@ -22,7 +22,7 @@ function esc(s) {
 }
 
 // 遊戲版本（與 sw.js 的 VERSION 同步更新；顯示於標題畫面供確認更新狀態）
-const GAME_VERSION = 'v17';
+const GAME_VERSION = 'v18';
 
 // 資源路徑前綴（3D 版位於 /3d/ 子目錄，需回上層取用共用圖片）
 const ASSET_PREFIX = /\/3d\//.test(location.pathname) ? '../' : '';
