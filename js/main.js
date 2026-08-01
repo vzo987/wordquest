@@ -54,6 +54,8 @@
       showStarterSelect();
     };
     $('#btn-savemgr').onclick = openSaveManager;
+    const verEl = $('#game-ver');
+    if (verEl) verEl.textContent = '版本 ' + GAME_VERSION;
     showScreen('screen-title');
   }
 

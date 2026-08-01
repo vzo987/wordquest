@@ -21,6 +21,9 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// 遊戲版本（與 sw.js 的 VERSION 同步更新；顯示於標題畫面供確認更新狀態）
+const GAME_VERSION = 'v17';
+
 // 資源路徑前綴（3D 版位於 /3d/ 子目錄，需回上層取用共用圖片）
 const ASSET_PREFIX = /\/3d\//.test(location.pathname) ? '../' : '';
 
