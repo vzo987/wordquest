@@ -21,6 +21,35 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// 資源路徑前綴（3D 版位於 /3d/ 子目錄，需回上層取用共用圖片）
+const ASSET_PREFIX = /\/3d\//.test(location.pathname) ? '../' : '';
+
+// 怪獸圖示（DOM 用）：支援圖片怪獸；二階銀色光環、三階金色光環＋皇冠
+// （烘焙變體圖 baked=true 的效果已在圖檔內，不再疊加即時光環）
+function speciesIcon(sp) {
+  if (!sp) return '';
+  const stage = sp.stage || 1;
+  const inner = sp.img
+    ? `<img class="sp-img" src="${ASSET_PREFIX}${sp.img}" alt="${esc(sp.name || '')}">`
+    : sp.emoji;
+  if (stage < 2 && !sp.img) return sp.emoji;
+  const evoCls = (stage >= 2 && !sp.baked) ? ' evo' + stage : '';
+  return `<span class="evo-wrap${evoCls}">${inner}</span>`;
+}
+
+// 圖片怪獸的 Image 快取（2D 畫布用；載入完成前回傳 null → 先畫替代 emoji）
+const _spImgCache = {};
+function speciesImgEl(sp) {
+  if (!sp || !sp.img) return null;
+  let im = _spImgCache[sp.img];
+  if (!im) {
+    im = new Image();
+    im.src = ASSET_PREFIX + sp.img;
+    _spImgCache[sp.img] = im;
+  }
+  return (im.complete && im.naturalWidth) ? im : null;
+}
+
 // 畫面切換
 function showScreen(id) {
   $$('.screen').forEach(s => s.classList.remove('active'));

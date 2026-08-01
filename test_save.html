@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>存檔相容性檢測 — Word Quest</title>
+<style>
+  body { font-family: "Microsoft JhengHei", system-ui, sans-serif; background: #1a2340; color: #eee; padding: 24px; }
+  h1 { font-size: 20px; }
+  .item { padding: 6px 12px; margin: 4px 0; border-radius: 8px; background: rgba(255,255,255,.07); }
+  .ok { border-left: 4px solid #66bb6a; }
+  .bad { border-left: 4px solid #ef5350; background: rgba(239,83,80,.15); }
+  #summary { font-size: 24px; font-weight: 800; margin: 14px 0; }
+  small { color: #aaa; }
+</style>
+</head>
+<body>
+<h1>💾 存檔相容性檢測（基準存檔：save_code.txt）</h1>
+<p><small>每次改版後打開此頁，全部 ✅ 代表舊存檔仍可正常遊玩。此頁不會動到任何 localStorage 存檔。</small></p>
+<div id="summary">檢測中…</div>
+<div id="results"></div>
+
+<script src="js/core/utils.js"></script>
+<script src="js/core/audio.js"></script>
+<script src="js/core/avatar.js"></script>
+<script src="js/data/words.js"></script>
+<script src="js/data/skills.js"></script>
+<script src="js/data/monsters.js"></script>
+<script src="js/data/items.js"></script>
+<script src="js/data/maps.js"></script>
+<script src="js/core/state.js"></script>
+<script src="js/core/learning.js"></script>
+<script src="js/systems/monster.js"></script>
+<script>
+(async function () {
+  const results = [];
+  const check = (name, pass, detail = '') => results.push({ name, pass, detail });
+
+  try {
+    const code = (await fetch('save_code.txt').then(r => r.text())).trim();
+    const raw = await decodeSave(code);
+    check('存檔碼可解碼', !!raw);
+    if (!raw) throw new Error('decode failed');
+
+    const d = normalizeSave(JSON.parse(raw));
+    check('版本欄位', d.version === 1, 'version=' + d.version);
+
+    // 隊伍與倉庫的所有參照 id 均存在
+    const mons = [...d.team, ...d.storage];
+    const badSp = mons.filter(m => !SPECIES[m.sp]).map(m => m.sp);
+    check(`怪獸種族 ×${mons.length} 全部存在`, badSp.length === 0, badSp.join(','));
+    const badSk = mons.flatMap(m => [...m.skills, ...m.learned]).filter(id => !SKILLS[id]);
+    check('怪獸技能全部存在', badSk.length === 0, [...new Set(badSk)].join(','));
+    const badW = mons.filter(m => m.weapon && !WEAPONS[m.weapon]).map(m => m.weapon);
+    const badA = mons.filter(m => m.armor && !ARMORS[m.armor]).map(m => m.armor);
+    check('怪獸裝備全部存在', badW.length + badA.length === 0, [...badW, ...badA].join(','));
+
+    // 數值計算不會出錯
+    let statErr = '';
+    try { mons.forEach(m => { const s = monsterStats(m); if (!isFinite(s.hpMax + s.totalAtk + s.totalDef)) throw new Error(m.sp); }); }
+    catch (e) { statErr = e.message; }
+    check('全部怪獸數值計算正常', !statErr, statErr);
+
+    // 背包物品 id
+    const badItems = Object.keys(d.player.items).filter(k => !CONSUMABLES[k]);
+    const badInvW = Object.keys(d.player.invWeapons).filter(k => !WEAPONS[k]);
+    const badInvA = Object.keys(d.player.invArmors).filter(k => !ARMORS[k]);
+    check('背包物品/裝備 id 全部存在', badItems.length + badInvW.length + badInvA.length === 0,
+      [...badItems, ...badInvW, ...badInvA].join(','));
+
+    // 世界進度
+    check('目前地圖存在', !!MAPS[d.world.map], d.world.map);
+    check('營火重生點地圖存在', !!MAPS[d.world.checkpoint.map], d.world.checkpoint.map);
+    const map = MAPS[d.world.map];
+    const inBounds = d.world.y >= 0 && d.world.y < map.grid.length && d.world.x >= 0 && d.world.x < map.grid[0].length;
+    const tile = inBounds ? map.grid[d.world.y][d.world.x] : '?';
+    check('玩家座標在地圖內且可站立', inBounds && tile !== '#' && tile !== '~', `(${d.world.x},${d.world.y})='${tile}'`);
+    const badCleared = Object.keys(d.world.cleared).filter(k => !MAPS[k]);
+    check('Boss 通關記錄地圖存在', badCleared.length === 0, badCleared.join(','));
+
+    // 學習歷程單字
+    const badWords = Object.keys(d.words).filter(w => !WORD_BY_EN[w]);
+    check(`學習歷程單字 ×${Object.keys(d.words).length} 全部存在`, badWords.length === 0, badWords.slice(0, 5).join(','));
+
+    // 摘要
+    const lead = d.team[0];
+    document.getElementById('summary').textContent = '';
+    const fails = results.filter(r => !r.pass).length;
+    document.getElementById('summary').textContent =
+      (fails === 0 ? '✅ 全部通過 — 這份存檔可在目前版本正常遊玩' : `❌ ${fails} 項未通過 — 修好再上版！`) +
+      `｜${SPECIES[lead.sp].name} Lv.${lead.lv}・💰${d.player.gold}・倉庫 ${d.storage.length} 隻`;
+  } catch (e) {
+    check('檢測執行', false, e.message);
+    document.getElementById('summary').textContent = '❌ 檢測中斷：' + e.message;
+  }
+
+  document.getElementById('results').innerHTML = results.map(r =>
+    `<div class="item ${r.pass ? 'ok' : 'bad'}">${r.pass ? '✅' : '❌'} ${r.name}${r.detail ? `　<small>${r.detail}</small>` : ''}</div>`
+  ).join('');
+})();
+</script>
+</body>
+</html>

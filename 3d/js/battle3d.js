@@ -108,11 +108,12 @@ const Battle3D = (() => {
     const t = now / 1000;
 
     if (Battle.active && Battle.enemy) {
-      // 敵方外觀
+      // 敵方外觀（含進化階段光環；支援圖片怪獸）
       const esp = SPECIES[Battle.enemy.sp];
       const es = enemyGrp.userData.sprite;
-      if (es.userData.emoji !== esp.emoji) {
-        E3D.setSpriteEmoji(es, esp.emoji);
+      const eKey = (esp.img || esp.emoji) + '@' + (esp.stage || 1);
+      if (es.userData.spKey !== eKey) {
+        E3D.setSpriteSpecies(es, esp);
         es.material.rotation = 0;
         resetBattler(enemyGrp, ENEMY_POS);
       }
@@ -122,13 +123,14 @@ const Battle3D = (() => {
       es.scale.x = E3D.lerp(es.scale.x, targetScale, 0.1);
       es.scale.y = E3D.lerp(es.scale.y, targetScale, 0.1);
 
-      // 我方外觀
+      // 我方外觀（含進化階段光環；支援圖片怪獸）
       const m = G.team[Battle.activeIdx];
       if (m) {
         const msp = SPECIES[m.sp];
         const ps = playerGrp.userData.sprite;
-        if (ps.userData.emoji !== msp.emoji) {
-          E3D.setSpriteEmoji(ps, msp.emoji);
+        const pKey = (msp.img || msp.emoji) + '@' + (msp.stage || 1);
+        if (ps.userData.spKey !== pKey) {
+          E3D.setSpriteSpecies(ps, msp);
           ps.material.rotation = 0;
           resetBattler(playerGrp, PLAYER_POS);
         }

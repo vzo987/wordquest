@@ -177,7 +177,7 @@ function teamCardHtml(m, i, where) {
          <button class="btn t-ord-btn" data-movedown="${i}" ${i === G.team.length - 1 ? 'disabled' : ''}>⬇</button>
        </div>`
     : '';
-  return `<div class="team-card">${order}<div class="t-emoji">${sp.emoji}</div>
+  return `<div class="team-card">${order}<div class="t-emoji">${speciesIcon(sp)}</div>
     <div class="t-info">
       <div class="t-name">${sp.name} <span class="badge badge-${sp.elem}">${sp.elem}</span> Lv.${m.lv}</div>
       <div class="t-stats">❤️${Math.round(m.hp)}/${s.hpMax}　⚔️${s.totalAtk}　🛡️${s.totalDef}　武器:${wName}　防具:${aName}</div>
@@ -315,7 +315,7 @@ function openDex() {
     if (!st) {
       html += `<div class="dex-cell unseen"><div class="d-emoji">❓</div><div class="d-name">???</div></div>`;
     } else {
-      html += `<div class="dex-cell"><div class="d-emoji">${sp.emoji}</div>
+      html += `<div class="dex-cell"><div class="d-emoji">${speciesIcon(sp)}</div>
         <div class="d-name">${sp.name}</div>
         <div><span class="badge badge-${sp.elem}">${sp.elem}</span></div>
         ${st === 'caught' ? '<div class="d-caught">✔ 已擁有</div>' : '<div class="d-caught" style="color:#999">目擊</div>'}</div>`;

@@ -102,7 +102,7 @@ async function showGrowthEvents(m, events) {
       const spNew = SPECIES[m.sp];
       await showModal({
         title: '✨ 進化！✨',
-        emoji: `<span class="evolving">${spNew.emoji}</span>`,
+        emoji: `<span class="evolving">${speciesIcon(spNew)}</span>`,
         body: `哇！<b>${ev.from}</b> 進化成 <b class="elem-${spNew.elem}">${ev.to}</b> 了！<br>全部能力大幅提升！<br><small>${spNew.desc}</small>`,
       });
     }

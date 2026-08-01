@@ -28,6 +28,7 @@ function startBattle({ speciesId, lv, elite = false, isBoss = false }) {
     B.enemyMaxHp = es.hpMax;
     B.isBoss = isBoss;
     B.perfect = true;
+    B.wrongCount = 0; // 本場答錯次數（敵方怒氣加成）
     B.spMap = {};
     B.buffMap = {};
     // 選出第一隻存活怪獸
@@ -61,12 +62,12 @@ function renderBattlers() {
 
   $('#enemy-name').innerHTML = `${e.elite ? '⭐' : ''}${B.isBoss ? '👑' : ''}${esp.name} <span class="badge badge-${esp.elem}">${esp.elem}</span>`;
   $('#enemy-lv').textContent = 'Lv.' + e.lv;
-  $('#enemy-sprite').innerHTML = esp.emoji + (e.elite ? '<span class="elite-star">⭐</span>' : '');
+  $('#enemy-sprite').innerHTML = speciesIcon(esp) + (e.elite ? '<span class="elite-star">⭐</span>' : '');
   setHpBar('#enemy-hp', '#enemy-hptext', B.enemyHp, B.enemyMaxHp);
 
   $('#player-name').innerHTML = `${msp.name} <span class="badge badge-${msp.elem}">${msp.elem}</span>`;
   $('#player-lv').textContent = 'Lv.' + m.lv;
-  $('#player-sprite').textContent = msp.emoji;
+  $('#player-sprite').innerHTML = speciesIcon(msp);
   setHpBar('#player-hp', '#player-hptext', m.hp, ms.hpMax);
   renderSp();
 }
@@ -217,6 +218,7 @@ async function useSkill(skillId) {
   } else {
     // === 玩家回合：答錯 → 攻擊落空（Miss，正解已朗讀顯示） ===
     B.perfect = false;
+    B.wrongCount++; // 敵方怒氣上升（攻擊力加成）
     if (sk.sp > 0) B.spMap[m.uid] = Math.max(0, (B.spMap[m.uid] || 0) - sk.sp); // 施放失敗仍損失 SP（風險與報酬）
 
     if (sk.type === 'atk') {
@@ -229,12 +231,12 @@ async function useSkill(skillId) {
       const graze = Math.max(1, Math.round(full * 0.1));
       B.enemyHp -= graze;
       showDamage('enemy', '-' + graze);
-      blog(`${msp.name} 分心了，攻擊落空…只造成了擦傷。`);
+      blog(`${msp.name} 分心了，攻擊落空…只造成了擦傷。⚠️ 對手氣勢上漲！`);
       renderBattlers();
       await wait(1100);
       if (B.enemyHp <= 0) return battleVictory();
     } else {
-      blog(`${msp.name} 分心了，${sk.name} 施放失敗…`);
+      blog(`${msp.name} 分心了，${sk.name} 施放失敗…⚠️ 對手氣勢上漲！`);
       await wait(800);
     }
   }
@@ -281,8 +283,9 @@ async function enemyTurn() {
   setTimeout(() => $('#enemy-sprite').classList.remove('anim-lunge-enemy'), 500);
   await wait(250);
 
-  // 傷害公式（GDD）：敵方攻擊力 − 玩家夥伴總防禦力
-  let dmg = es.totalAtk - Math.round(ms.totalDef * defMult);
+  // 傷害公式：敵方攻擊力 × 1.25（基礎強化）× 怒氣（本場每答錯 +15%，疊加無上限）− 玩家總防禦
+  const rage = 1 + (B.wrongCount || 0) * 0.15;
+  let dmg = Math.round(es.totalAtk * 1.25 * rage) - Math.round(ms.totalDef * defMult);
   dmg = Math.max(1, Math.round(dmg * (0.9 + Math.random() * 0.2) * blockMult));
   m.hp = Math.max(0, m.hp - dmg);
 
@@ -290,7 +293,9 @@ async function enemyTurn() {
   $('#player-sprite').classList.add('anim-hit');
   setTimeout(() => $('#player-sprite').classList.remove('anim-hit'), 400);
   showDamage('player', '-' + dmg);
-  blog(`${esp.name} 使出 ${skName}！${blockMult < 1 ? '（已格擋減半）' : ''}`);
+  blog(`${esp.name} 使出 ${skName}！` +
+    (rage > 1 ? `🔥怒氣 +${Math.round((rage - 1) * 100)}%！` : '') +
+    (blockMult < 1 ? '（已格擋減半）' : ''));
   renderBattlers();
   await wait(1350); // 停留久一點，讓扣血動畫完整播放
 }
@@ -402,12 +407,24 @@ function showItemMenu() {
       Battle.turnLock = true;
       const m = activeMon();
       const ms = monsterStats(m);
+      const eff = CONSUMABLES[id].effect;
       G.player.items[id]--;
-      const heal = Math.round(ms.hpMax * CONSUMABLES[id].effect.healPct);
-      m.hp = Math.min(ms.hpMax, m.hp + heal);
-      Audio2.sfx.heal();
-      showDamage('player', '+' + heal, 'heal');
-      blog(`使用了 ${CONSUMABLES[id].name}！恢復 ${heal} HP`);
+      if (eff.team) {
+        // 團隊聖水：全隊恢復
+        G.team.forEach(x => {
+          const s = monsterStats(x);
+          x.hp = Math.min(s.hpMax, x.hp + Math.round(s.hpMax * eff.healPct));
+        });
+        Audio2.sfx.heal();
+        showDamage('player', '全隊恢復', 'heal');
+        blog(`使用了 ${CONSUMABLES[id].name}！全隊生命完全恢復！`);
+      } else {
+        const heal = Math.round(ms.hpMax * eff.healPct);
+        m.hp = Math.min(ms.hpMax, m.hp + heal);
+        Audio2.sfx.heal();
+        showDamage('player', '+' + heal, 'heal');
+        blog(`使用了 ${CONSUMABLES[id].name}！恢復 ${heal} HP`);
+      }
       renderBattlers();
       await wait(800);
       // 使用道具消耗一個回合 → 敵方回合（交互回合制）
@@ -478,7 +495,8 @@ async function battleVictory() {
 
   // --- 經驗值與金幣 ---
   const eliteMult = e.elite ? 1.5 : 1;
-  const exp = Math.round(esp.expYield * (0.7 + e.lv * 0.18) * eliteMult);
+  const expCharm = G.player.passives.exp_charm ? 1.5 : 1; // 經驗護符 +50%
+  const exp = Math.round(esp.expYield * (0.7 + e.lv * 0.18) * eliteMult * expCharm);
   let gold = Math.round((10 + e.lv * 4) * eliteMult * (G.player.passives.charm ? 1.5 : 1));
   G.player.gold += gold;
   Audio2.sfx.coin();
@@ -517,8 +535,8 @@ async function battleVictory() {
   // 升級 / 學技 / 進化事件
   for (const g of growthEvents) await showGrowthEvents(g.m, g.evs);
 
-  // --- 收服判定（GDD：擊敗後機率收服；完美答題 1.5 倍） ---
-  if (!B.isBoss && esp.catchRate > 0 && !e.elite) {
+  // --- 收服判定（GDD：擊敗後機率收服；完美答題 1.5 倍；BOSS 與初始夥伴也是稀有收服目標） ---
+  if (esp.catchRate > 0 && !e.elite) {
     await tryCapture(e, esp);
   }
 
@@ -532,17 +550,21 @@ async function tryCapture(e, esp) {
   let bonusText = `基礎機率 ${Math.round(rate * 100)}%`;
   if (Battle.perfect) { rate *= 1.5; bonusText += ' × 完美答題 1.5'; }
 
-  // 詢問是否使用收服球
-  if ((G.player.items.ball || 0) > 0) {
-    const useBall = await showModal({
+  // 詢問是否使用收服道具（收服球 ×2 / 大師球 ×3）
+  const hasBall = (G.player.items.ball || 0) > 0;
+  const hasMaster = (G.player.items.master_ball || 0) > 0;
+  if (hasBall || hasMaster) {
+    const btns = [];
+    if (hasMaster) btns.push({ text: `🟣 用大師球！成功率 ×3（剩 ${G.player.items.master_ball}）`, value: 'master', cls: 'btn-gold' });
+    if (hasBall) btns.push({ text: `🔮 用收服球！成功率 ×2（剩 ${G.player.items.ball}）`, value: 'ball', cls: hasMaster ? '' : 'btn-gold' });
+    btns.push({ text: '直接嘗試', value: null });
+    const choice = await showModal({
       title: '要收服牠嗎？', emoji: '🔮',
-      body: `${esp.emoji} ${esp.name} 搖搖晃晃地看著你…<br>${bonusText}<br>使用 <b>收服球</b> 可讓成功率 ×2（剩 ${G.player.items.ball} 顆）`,
-      buttons: [
-        { text: '🔮 用收服球！', value: true, cls: 'btn-gold' },
-        { text: '直接嘗試', value: false },
-      ],
+      body: `${speciesIcon(esp)} ${esp.name} 搖搖晃晃地看著你…<br>${bonusText}`,
+      buttons: btns,
     });
-    if (useBall) { G.player.items.ball--; rate *= 2; }
+    if (choice === 'master') { G.player.items.master_ball--; rate *= 3; }
+    else if (choice === 'ball') { G.player.items.ball--; rate *= 2; }
   }
   rate = Math.min(0.9, rate);
 
@@ -557,7 +579,7 @@ async function tryCapture(e, esp) {
     if (G.team.length < 3) { G.team.push(newMon); dest = '加入了你的隊伍！'; }
     else { G.storage.push(newMon); dest = '被送到怪獸倉庫（隊伍已滿 3 隻）。'; }
     await showModal({
-      title: '✨ 收服成功！', emoji: esp.emoji,
+      title: '✨ 收服成功！', emoji: speciesIcon(esp),
       body: `<b>${esp.name}</b> ${dest}<br><small>${esp.desc}</small>`,
     });
   } else {

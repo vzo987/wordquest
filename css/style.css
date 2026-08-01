@@ -89,6 +89,23 @@ body {
 .starter-detail .d-desc { margin: 8px 0 12px; color: #555; }
 .starter-detail .d-stats { display: flex; gap: 16px; justify-content: center; margin-bottom: 14px; font-weight: 700; }
 
+/* 進化階段光環（繼承感：同基底圖像 + 階段標記） */
+.evo-wrap { position: relative; display: inline-block; }
+.evo2 { text-shadow: 0 0 6px #cfd8dc, 0 0 14px #90caf9, 0 0 20px #b0c4de; }
+.evo3 { text-shadow: 0 0 6px #ffe082, 0 0 14px #ffb300, 0 0 22px #ff8f00; }
+.evo3::after {
+  content: '👑'; position: absolute; top: -0.5em; right: -0.3em;
+  font-size: 0.45em; text-shadow: none;
+}
+
+/* 圖片怪獸：以 1em 融入文字排版（隨所在處字級縮放） */
+.sp-img {
+  width: 1em; height: 1em; object-fit: contain;
+  vertical-align: -0.12em;
+}
+.evo2 .sp-img { filter: drop-shadow(0 0 3px #90caf9) drop-shadow(0 0 7px #90caf9); }
+.evo3 .sp-img { filter: drop-shadow(0 0 3px #ffd54f) drop-shadow(0 0 8px #ff8f00); }
+
 /* 屬性色 */
 .elem-金 { color: #b8860b; } .elem-木 { color: #2e7d32; } .elem-水 { color: #1565c0; }
 .elem-火 { color: #d84315; } .elem-土 { color: #6d4c41; }

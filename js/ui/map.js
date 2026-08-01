@@ -58,9 +58,38 @@ MapView.load = function (mapId, pos = null) {
       x: t.x, y: t.y, homeX: t.x, homeY: t.y,
     });
   });
+  mv.spawnStarter();
 
   mv.refreshHud();
   mv.startLoops();
+};
+
+// 初始夥伴稀有出沒點（該屬性地圖限定，5 小時重生，可收服）
+MapView.spawnStarter = function () {
+  const mv = MapView;
+  if (!mv.map.starterId || !mv.map.starterSpawn) return;
+  const key = `${mv.map.id}_starter`;
+  if (mv.monsters.some(m => m.key === key)) return;
+  const defeatedAt = G.world.defeated[key];
+  if (defeatedAt && Date.now() - defeatedAt < STARTER_RESPAWN_MS) return; // 5 小時冷卻
+  const s = mv.map.starterSpawn;
+  if (s.x === G.world.x && s.y === G.world.y) return;
+  delete G.world.defeated[key];
+  mv.monsters.push({
+    idx: 'st', key,
+    spId: mv.map.starterId,
+    lv: randRange(mv.map.lvRange[0], mv.map.lvRange[1]),
+    elite: false, starter: true,
+    x: s.x, y: s.y, homeX: s.x, homeY: s.y,
+  });
+};
+
+// Boss 是否在場（首次未擊敗必在；擊敗後每 5 小時重生，可再挑戰/收服）
+MapView.bossActive = function () {
+  const mv = MapView;
+  if (!mv.map || !mv.bossPos) return false;
+  if (!G.world.cleared[mv.map.id]) return true;
+  return Date.now() - (G.world.bossDefeated[mv.map.id] || 0) > BOSS_RESPAWN_MS;
 };
 
 // ---------- HUD ----------
@@ -73,7 +102,7 @@ MapView.refreshHud = function () {
   mini.innerHTML = G.team.map(m => {
     const s = monsterStats(m);
     const pct = Math.round(clamp(m.hp / s.hpMax, 0, 1) * 100);
-    return `<span class="mini-mon">${SPECIES[m.sp].emoji}<span class="mini-hp"> ${pct}%</span></span>`;
+    return `<span class="mini-mon">${speciesIcon(SPECIES[m.sp])}<span class="mini-hp"> ${pct}%</span></span>`;
   }).join('');
 };
 
@@ -140,7 +169,7 @@ MapView.move = function (dx, dy) {
   if (mon) return mv.triggerBattle(mon);
 
   // Boss
-  if (mv.bossPos && nx === mv.bossPos.x && ny === mv.bossPos.y && !G.world.cleared[mv.map.id]) {
+  if (mv.bossPos && nx === mv.bossPos.x && ny === mv.bossPos.y && mv.bossActive()) {
     return mv.triggerBoss();
   }
 
@@ -269,9 +298,11 @@ MapView.triggerBoss = async function () {
   if (mv.busy || Battle.active) return;
   mv.busy = true;
   const bsp = SPECIES[mv.map.bossId];
+  const rematch = !!G.world.cleared[mv.map.id];
   const go = await showModal({
-    title: '⚠️ BOSS 出現！', emoji: bsp.emoji,
-    body: `<b class="elem-${bsp.elem}">${bsp.name}</b>（Lv.${mv.map.bossLv}）<br>${bsp.desc}<br>準備好了嗎？`,
+    title: rematch ? '👑 BOSS 再次現身！' : '⚠️ BOSS 出現！', emoji: bsp.emoji,
+    body: `<b class="elem-${bsp.elem}">${bsp.name}</b>（Lv.${mv.map.bossLv}）<br>${bsp.desc}<br>` +
+      (rematch ? '<small>再次擊敗有機會收服牠！</small>' : '準備好了嗎？'),
     buttons: [
       { text: '⚔️ 挑戰！', value: true, cls: 'btn-gold' },
       { text: '再準備一下', value: false },
@@ -280,14 +311,18 @@ MapView.triggerBoss = async function () {
   if (!go) { mv.busy = false; return; }
   const outcome = await startBattle({ speciesId: mv.map.bossId, lv: mv.map.bossLv, isBoss: true });
   if (outcome.result === 'win') {
+    const first = !G.world.cleared[mv.map.id];
     G.world.cleared[mv.map.id] = true;
-    const tier = MAP_ORDER.indexOf(mv.map.id) + 2;
-    G.player.shopTier = Math.max(G.player.shopTier, Math.min(3, tier));
+    G.world.bossDefeated[mv.map.id] = Date.now(); // 5 小時後重生
+    if (first) {
+      const unlock = TIER_UNLOCK[mv.map.id];
+      if (unlock) G.player.shopTier = Math.max(G.player.shopTier, Math.min(MAX_TIER, unlock));
+      await showModal({
+        title: '🎊 BOSS 擊破！', emoji: '👑',
+        body: `${bsp.name} 被打敗了！<br>出口的封印解除了，商店進貨了更棒的裝備！<br>往 <b>E</b> 出口前進吧！<br><small>BOSS 每 5 小時會重新出現，再次擊敗有機會收服牠！</small>`,
+      });
+    }
     autoSave();
-    await showModal({
-      title: '🎊 BOSS 擊破！', emoji: '👑',
-      body: `${bsp.name} 被打敗了！<br>出口的封印解除了，商店進貨了更棒的裝備！<br>往 <b>E</b> 出口前進吧！`,
-    });
   }
   mv.afterBattle(outcome, null);
 };
@@ -339,6 +374,7 @@ MapView.checkRespawn = function () {
       x: t.x, y: t.y, homeX: t.x, homeY: t.y,
     });
   });
+  mv.spawnStarter(); // 初始夥伴 5 小時重生檢查
 };
 
 // ---------- 繪製 ----------
@@ -396,25 +432,54 @@ MapView.render = function () {
     ctx.fillText('📦', ch.x * TILE + TILE / 2, ch.y * TILE + TILE / 2 + 2);
   });
 
-  // Boss
-  if (mv.bossPos && !G.world.cleared[mv.map.id]) {
+  // 依進化階段畫圖示：二階銀光、三階金光＋皇冠（繼承感）；支援圖片怪獸
+  const drawSpecies = (sp, px, py, size) => {
+    const st = sp.stage || 1;
+    const fx = st > 1 && !sp.baked; // 烘焙圖效果已在圖檔內
+    if (fx) {
+      ctx.save();
+      ctx.shadowColor = st === 3 ? '#ffb300' : '#90caf9';
+      ctx.shadowBlur = 10;
+    }
+    const im = speciesImgEl(sp);
+    if (im) {
+      const box = size * 1.35; // 圖片視覺份量對齊 emoji
+      const k = Math.min(box / im.width, box / im.height);
+      const w = im.width * k, h = im.height * k;
+      ctx.drawImage(im, px - w / 2, py - h / 2, w, h);
+    } else {
+      ctx.font = size + 'px serif';
+      ctx.fillText(sp.emoji, px, py);
+    }
+    if (fx) ctx.restore();
+    if (st === 3 && !sp.baked) {
+      ctx.font = Math.round(size * 0.42) + 'px serif';
+      ctx.fillText('👑', px + size * 0.38, py - size * 0.52);
+    }
+  };
+
+  // Boss（首次必在；擊敗後 5 小時重生）
+  if (mv.bossActive()) {
     const bsp = SPECIES[mv.map.bossId];
     const bob = Math.sin(Date.now() / 300) * 3;
-    ctx.font = '34px serif';
-    ctx.fillText(bsp.emoji, mv.bossPos.x * TILE + TILE / 2, mv.bossPos.y * TILE + TILE / 2 + bob);
-    ctx.font = '14px serif';
-    ctx.fillText('👑', mv.bossPos.x * TILE + TILE / 2 + 12, mv.bossPos.y * TILE + 8);
+    drawSpecies(bsp, mv.bossPos.x * TILE + TILE / 2, mv.bossPos.y * TILE + TILE / 2 + bob, 34);
+    if ((bsp.stage || 1) < 3) {
+      ctx.font = '14px serif';
+      ctx.fillText('👑', mv.bossPos.x * TILE + TILE / 2 + 12, mv.bossPos.y * TILE + 8);
+    }
   }
 
-  // 野生怪獸（明雷）
+  // 野生怪獸（明雷；⭐精英、✨初始夥伴）
   mv.monsters.forEach(mon => {
     const sp = SPECIES[mon.spId];
-    const bob = Math.sin(Date.now() / 350 + mon.idx) * 2;
-    ctx.font = '26px serif';
-    ctx.fillText(sp.emoji, mon.x * TILE + TILE / 2, mon.y * TILE + TILE / 2 + bob);
+    const bob = Math.sin(Date.now() / 350 + (mon.starter ? 9 : mon.idx)) * 2;
+    drawSpecies(sp, mon.x * TILE + TILE / 2, mon.y * TILE + TILE / 2 + bob, 26);
     if (mon.elite) {
       ctx.font = '13px serif';
       ctx.fillText('⭐', mon.x * TILE + TILE / 2 + 12, mon.y * TILE + 8);
+    } else if (mon.starter) {
+      ctx.font = '13px serif';
+      ctx.fillText('✨', mon.x * TILE + TILE / 2 + 12, mon.y * TILE + 8);
     }
   });
 

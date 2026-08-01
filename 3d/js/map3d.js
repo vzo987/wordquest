@@ -38,6 +38,12 @@ const gz = y => y - (BOARD_H - 1) / 2;
 const SKY = {
   map1: ['#7ec8e3', '#d8f0c0'], map2: ['#8fd3f4', '#e8f7fb'],
   map3: ['#ff9e80', '#ffd180'], map4: ['#90a4ae', '#cfd8dc'],
+  map5: ['#e0c188', '#f5e6c8'],
+  map6: ['#3f5e63', '#7fa88b'], map7: ['#7fd4e8', '#eafcff'],
+  map8: ['#4e342e', '#8d6e63'], map9: ['#546e7a', '#90a4ae'],
+  map10: ['#ffe0b2', '#fff8e1'], map11: ['#b3e5fc', '#e8f5e9'],
+  map12: ['#a7d8f0', '#eef9ff'], map13: ['#37121a', '#b71c1c'],
+  map14: ['#81aabf', '#cfd8dc'], map15: ['#d7b98a', '#f0e2c0'],
 };
 
 // ---------- 3D 初始化（一次） ----------
@@ -122,6 +128,7 @@ MapView.load = function (mapId, pos = null) {
       x: t.x, y: t.y, homeX: t.x, homeY: t.y,
     });
   });
+  mv.spawnStarter();
 
   mv.build3dBoard();
   // 玩家瞬移到起點，鏡頭直接就位（不做過場滑動）
@@ -132,6 +139,34 @@ MapView.load = function (mapId, pos = null) {
 
   mv.refreshHud();
   mv.startLoops();
+};
+
+// 初始夥伴稀有出沒點（該屬性地圖限定，5 小時重生，可收服）
+MapView.spawnStarter = function () {
+  const mv = MapView;
+  if (!mv.map.starterId || !mv.map.starterSpawn) return;
+  const key = `${mv.map.id}_starter`;
+  if (mv.monsters.some(m => m.key === key)) return;
+  const defeatedAt = G.world.defeated[key];
+  if (defeatedAt && Date.now() - defeatedAt < STARTER_RESPAWN_MS) return;
+  const s = mv.map.starterSpawn;
+  if (s.x === G.world.x && s.y === G.world.y) return;
+  delete G.world.defeated[key];
+  mv.monsters.push({
+    idx: 'st', key,
+    spId: mv.map.starterId,
+    lv: randRange(mv.map.lvRange[0], mv.map.lvRange[1]),
+    elite: false, starter: true,
+    x: s.x, y: s.y, homeX: s.x, homeY: s.y,
+  });
+};
+
+// Boss 是否在場（首次未擊敗必在；擊敗後每 5 小時重生，可再挑戰/收服）
+MapView.bossActive = function () {
+  const mv = MapView;
+  if (!mv.map || !mv.bossPos) return false;
+  if (!G.world.cleared[mv.map.id]) return true;
+  return Date.now() - (G.world.bossDefeated[mv.map.id] || 0) > BOSS_RESPAWN_MS;
 };
 
 // ---------- 建立 3D 地形 ----------
@@ -240,7 +275,7 @@ MapView.build3dBoard = function () {
   if (mv.bossPos) {
     const bsp = SPECIES[mv.map.bossId];
     mv.bossGroup = new THREE.Group();
-    const s = E3D.makeEmojiSprite(bsp.emoji, 1.5);
+    const s = E3D.makeSpeciesSprite(bsp, 1.5);
     s.position.y = 0.8;
     const crown = E3D.makeEmojiSprite('👑', 0.55);
     crown.position.set(0.35, 1.65, 0);
@@ -254,13 +289,17 @@ MapView.build3dBoard = function () {
 MapView.makeMonsterGroup = function (mon) {
   const grp = new THREE.Group();
   const sp = SPECIES[mon.spId];
-  const s = E3D.makeEmojiSprite(sp.emoji, 0.95);
+  const s = E3D.makeSpeciesSprite(sp, 0.95);
   s.position.y = 0.52;
   grp.add(s, E3D.makeShadow(0.85));
   if (mon.elite) {
     const star = E3D.makeEmojiSprite('⭐', 0.42);
     star.position.set(0.32, 1.05, 0);
     grp.add(star);
+  } else if (mon.starter) {
+    const spark = E3D.makeEmojiSprite('✨', 0.45);
+    spark.position.set(0.32, 1.05, 0);
+    grp.add(spark);
   }
   grp.position.set(gx(mon.x), 0, gz(mon.y));
   grp.userData.sprite = s;
@@ -304,9 +343,9 @@ MapView.tick3d = function (now) {
     }
   }
 
-  // BOSS / 寶箱顯示狀態
+  // BOSS / 寶箱顯示狀態（BOSS 擊敗後 5 小時重生）
   if (mv.bossGroup) {
-    mv.bossGroup.visible = !G.world.cleared[mv.map.id];
+    mv.bossGroup.visible = mv.bossActive();
     mv.bossGroup.children[0].position.y = 0.8 + Math.sin(t * 2.2) * 0.08;
   }
   for (const [key, grp] of Object.entries(mv.chestGroups)) {
@@ -360,14 +399,14 @@ MapView.drawMinimap = function (now) {
   mv.chests.forEach(ch => {
     ctx.fillRect(ch.x * S + 2, ch.y * S + 2, S - 4, S - 4);
   });
-  if (mv.bossPos && !G.world.cleared[mv.map.id]) {
+  if (mv.bossActive()) {
     ctx.fillStyle = '#d500f9';
     ctx.beginPath();
     ctx.arc(mv.bossPos.x * S + S / 2, mv.bossPos.y * S + S / 2, S / 2, 0, 7);
     ctx.fill();
   }
   mv.monsters.forEach(mon => {
-    ctx.fillStyle = mon.elite ? '#ff6f00' : '#e53935';
+    ctx.fillStyle = mon.starter ? '#f06292' : mon.elite ? '#ff6f00' : '#e53935';
     ctx.beginPath();
     ctx.arc(mon.x * S + S / 2, mon.y * S + S / 2, S / 2 - 1.5, 0, 7);
     ctx.fill();
@@ -391,7 +430,7 @@ MapView.refreshHud = function () {
   mini.innerHTML = G.team.map(m => {
     const s = monsterStats(m);
     const pct = Math.round(clamp(m.hp / s.hpMax, 0, 1) * 100);
-    return `<span class="mini-mon">${SPECIES[m.sp].emoji}<span class="mini-hp"> ${pct}%</span></span>`;
+    return `<span class="mini-mon">${speciesIcon(SPECIES[m.sp])}<span class="mini-hp"> ${pct}%</span></span>`;
   }).join('');
 };
 
@@ -455,7 +494,7 @@ MapView.move = function (sdx, sdy) {
   const mon = mv.monsterAt(nx, ny);
   if (mon) return mv.triggerBattle(mon);
 
-  if (mv.bossPos && nx === mv.bossPos.x && ny === mv.bossPos.y && !G.world.cleared[mv.map.id]) {
+  if (mv.bossPos && nx === mv.bossPos.x && ny === mv.bossPos.y && mv.bossActive()) {
     return mv.triggerBoss();
   }
 
@@ -575,9 +614,11 @@ MapView.triggerBoss = async function () {
   if (mv.busy || Battle.active) return;
   mv.busy = true;
   const bsp = SPECIES[mv.map.bossId];
+  const rematch = !!G.world.cleared[mv.map.id];
   const go = await showModal({
-    title: '⚠️ BOSS 出現！', emoji: bsp.emoji,
-    body: `<b class="elem-${bsp.elem}">${bsp.name}</b>（Lv.${mv.map.bossLv}）<br>${bsp.desc}<br>準備好了嗎？`,
+    title: rematch ? '👑 BOSS 再次現身！' : '⚠️ BOSS 出現！', emoji: bsp.emoji,
+    body: `<b class="elem-${bsp.elem}">${bsp.name}</b>（Lv.${mv.map.bossLv}）<br>${bsp.desc}<br>` +
+      (rematch ? '<small>再次擊敗有機會收服牠！</small>' : '準備好了嗎？'),
     buttons: [
       { text: '⚔️ 挑戰！', value: true, cls: 'btn-gold' },
       { text: '再準備一下', value: false },
@@ -586,14 +627,18 @@ MapView.triggerBoss = async function () {
   if (!go) { mv.busy = false; return; }
   const outcome = await startBattle({ speciesId: mv.map.bossId, lv: mv.map.bossLv, isBoss: true });
   if (outcome.result === 'win') {
+    const first = !G.world.cleared[mv.map.id];
     G.world.cleared[mv.map.id] = true;
-    const tier = MAP_ORDER.indexOf(mv.map.id) + 2;
-    G.player.shopTier = Math.max(G.player.shopTier, Math.min(3, tier));
+    G.world.bossDefeated[mv.map.id] = Date.now(); // 5 小時後重生
+    if (first) {
+      const unlock = TIER_UNLOCK[mv.map.id];
+      if (unlock) G.player.shopTier = Math.max(G.player.shopTier, Math.min(MAX_TIER, unlock));
+      await showModal({
+        title: '🎊 BOSS 擊破！', emoji: '👑',
+        body: `${bsp.name} 被打敗了！<br>出口的封印解除了，商店進貨了更棒的裝備！<br>往 <b>E</b> 出口前進吧！<br><small>BOSS 每 5 小時會重新出現，再次擊敗有機會收服牠！</small>`,
+      });
+    }
     autoSave();
-    await showModal({
-      title: '🎊 BOSS 擊破！', emoji: '👑',
-      body: `${bsp.name} 被打敗了！<br>出口的封印解除了，商店進貨了更棒的裝備！<br>往 <b>E</b> 出口前進吧！`,
-    });
   }
   mv.afterBattle(outcome, null);
 };
@@ -644,4 +689,5 @@ MapView.checkRespawn = function () {
       x: t.x, y: t.y, homeX: t.x, homeY: t.y,
     });
   });
+  mv.spawnStarter(); // 初始夥伴 5 小時重生檢查
 };

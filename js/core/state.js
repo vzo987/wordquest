@@ -21,9 +21,10 @@ function defaultState() {
     world: {
       map: 'map1', x: 1, y: 1,
       checkpoint: { map: 'map1', x: 1, y: 1 },      // 最近的營火（重生點）
-      cleared: {},   // {mapId: true} 已擊敗 Boss
-      chests: {},    // {mapId: true} 已開寶箱
-      defeated: {},  // {'mapId_idx': 擊敗時間戳} 用於計時重生
+      cleared: {},      // {mapId: true} 已擊敗 Boss（出口永久解鎖）
+      bossDefeated: {}, // {mapId: 擊敗時間戳} Boss 5 小時計時重生
+      chests: {},       // {'mapId_x_y': true} 已開寶箱
+      defeated: {},     // {'mapId_idx': 擊敗時間戳} 用於計時重生
       ending: false, // 是否通關
     },
     words: {},  // 學習歷程 {en: {seen, ok, ng, streak}}
@@ -78,6 +79,22 @@ function saveGame(silent = false) {
   } catch (e) { console.warn('存檔失敗', e); }
 }
 
+// 舊存檔相容：載入時自動補齊新版本新增的欄位（保證舊存檔永遠可玩）
+function normalizeSave(d) {
+  const def = defaultState();
+  for (const k of Object.keys(def)) if (d[k] === undefined) d[k] = def[k];
+  for (const k of Object.keys(def.player)) if (d.player[k] === undefined) d.player[k] = def.player[k];
+  for (const k of Object.keys(def.world)) if (d.world[k] === undefined) d.world[k] = def.world[k];
+  for (const k of Object.keys(def.stats)) if (d.stats[k] === undefined) d.stats[k] = def.stats[k];
+  // 怪獸實例欄位補齊
+  [...(d.team || []), ...(d.storage || [])].forEach(m => {
+    if (!m.learned) m.learned = m.skills ? m.skills.slice() : [];
+    if (!m.skills || !m.skills.length) m.skills = m.learned.slice(0, 4);
+    if (m.exp === undefined) m.exp = 0;
+  });
+  return d;
+}
+
 // 讀取指定位置（成功回傳 true 並切換為目前位置）
 function loadSlot(i) {
   try {
@@ -85,7 +102,7 @@ function loadSlot(i) {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data.version) return false;
-    G = data;
+    G = normalizeSave(data);
     currentSlot = i;
     return true;
   } catch (e) { return false; }
