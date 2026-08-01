@@ -22,7 +22,7 @@ function esc(s) {
 }
 
 // 遊戲版本（與 sw.js 的 VERSION 同步更新；顯示於標題畫面供確認更新狀態）
-const GAME_VERSION = 'v19';
+const GAME_VERSION = 'v20';
 
 // 資源路徑前綴（3D 版位於 /3d/ 子目錄，需回上層取用共用圖片）
 const ASSET_PREFIX = /\/3d\//.test(location.pathname) ? '../' : '';
@@ -33,7 +33,7 @@ function speciesIcon(sp) {
   if (!sp) return '';
   const stage = sp.stage || 1;
   const inner = sp.img
-    ? `<img class="sp-img" src="${ASSET_PREFIX}${sp.img}" alt="${esc(sp.name || '')}">`
+    ? `<img class="sp-img" src="${ASSET_PREFIX}${sp.img}" alt="${esc(sp.name || '')}" onerror="this.replaceWith(document.createTextNode('${sp.emoji || '❓'}'))">`
     : sp.emoji;
   if (stage < 2 && !sp.img) return sp.emoji;
   const evoCls = (stage >= 2 && !sp.baked) ? ' evo' + stage : '';
